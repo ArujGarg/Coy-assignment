@@ -1,6 +1,6 @@
 # coy · discover
 
-A swipe-based "Discover" tab for the Coy SDE intern assignment (Part B). Next.js (App Router) + TypeScript + Tailwind + Framer Motion, with Postgres (Neon in production, embedded PGlite locally) behind Next.js API routes. A single hardcoded user (`"me"`), no auth. The "Home" tab is intentionally blank.
+A swipe-based "Discover" tab for the Coy SDE intern assignment (Part B). Next.js (App Router) + TypeScript + Tailwind + Framer Motion, with Postgres via [Prisma](https://www.prisma.io) (Neon in production, embedded PGlite locally) behind Next.js API routes. A single hardcoded user (`"me"`), no auth. The "Home" tab is intentionally blank.
 
 | Discover | It's a match |
 |---|---|
@@ -20,9 +20,11 @@ With no `DATABASE_URL`, the app uses an embedded Postgres (PGlite) stored in `da
 
 1. Create a free Postgres database on [Neon](https://neon.tech) and copy its (pooled) connection string.
 2. Import this repo in Vercel and add env vars: `DATABASE_URL` and, optionally, `ALLOW_RESET=true`.
-3. Deploy. Tables are created and seeded automatically on the first request.
+3. Deploy. The build runs `prisma migrate deploy` (creates the tables from `prisma/migrations`), and the app seeds itself on the first request.
 
-Seed: 31 profiles, 9 of which have already liked you. Photos are free-to-use portraits from [Unsplash](https://unsplash.com/license) (Unsplash licence), stored in `public/avatars/`.
+> Moving an older database (created before Prisma was added)? Prisma won't migrate a non-empty database, so reset it once in the Neon SQL editor: `DROP SCHEMA public CASCADE; CREATE SCHEMA public;`
+
+Seed: 32 profiles, 9 of which have already liked you. Photos are free-to-use portraits from [Unsplash](https://unsplash.com/license) (Unsplash licence), stored in `public/avatars/`.
 
 ## Using it
 
@@ -53,7 +55,8 @@ The promise: nobody learns who liked them unless it's mutual.
 
 ## Backend design
 
-- Tables: `profiles`, `swipes`, `likes`, `matches`. `swipes` has `UNIQUE(user_id, target_id)`; `matches` has `UNIQUE(user_id, other_id)`.
+- The schema lives in `prisma/schema.prisma` (models `Profile`, `Swipe`, `Like`, `Match`, `Meta`) and all queries go through the Prisma client. Changing the schema: edit it, then `npx prisma migrate dev --name <change>`.
+- Tables: `profiles`, `swipes`, `likes`, `matches`. `swipes` has a composite primary key `(user_id, target_id)`; `matches` has `(user_id, other_id)`.
 - `swipe()` runs in one transaction. A repeat swipe (even in the other direction) returns the original outcome and changes nothing, so it's idempotent and can't create duplicate matches.
 - Logic is in `lib/matching.ts`, separate from route handlers, and tested against an in-memory DB.
 
@@ -68,7 +71,8 @@ The promise: nobody learns who liked them unless it's mutual.
 ```
 app/api/*        route handlers (feed, swipe, matches, reset)
 lib/matching.ts  feed / swipe / matches logic
-lib/db.ts        schema + connection (Neon / PGlite)     lib/seed.ts  mock data
+prisma/          schema + migrations
+lib/db.ts        Prisma client (Neon / PGlite)     lib/seed.ts  mock data
 components/      Discover, SwipeCard, MatchScreen, MatchesView
 tests/           vitest
 ```

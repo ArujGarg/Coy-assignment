@@ -1,0 +1,75 @@
+generator client {
+  provider = "prisma-client"
+  output   = "../lib/generated/prisma"
+}
+
+datasource db {
+  provider = "postgresql"
+}
+
+enum Direction {
+  like
+  pass
+}
+
+/// The (dummy) people shown in the feed.
+model Profile {
+  id        String   @id
+  name      String
+  age       Int
+  photo     String
+  bio       String
+  city      String
+  interests String[]
+  sortOrder Int      @map("sort_order")
+
+  swipesReceived Swipe[]
+  likesGiven     Like[]
+  matchedWith    Match[]
+
+  @@map("profiles")
+}
+
+/// What the logged-in user did to a profile. The composite key means a profile can only be swiped once.
+model Swipe {
+  userId    String    @map("user_id")
+  targetId  String    @map("target_id")
+  direction Direction
+  createdAt DateTime  @default(now()) @map("created_at")
+
+  target Profile @relation(fields: [targetId], references: [id], onDelete: Cascade)
+
+  @@id([userId, targetId])
+  @@map("swipes")
+}
+
+/// Profiles that already liked the user. Private: no endpoint ever returns this table.
+model Like {
+  likerId String @map("liker_id")
+  likedId String @map("liked_id")
+
+  liker Profile @relation(fields: [likerId], references: [id], onDelete: Cascade)
+
+  @@id([likerId, likedId])
+  @@map("likes")
+}
+
+/// Mutual matches only. The composite key prevents duplicates.
+model Match {
+  userId    String   @map("user_id")
+  otherId   String   @map("other_id")
+  createdAt DateTime @default(now()) @map("created_at")
+
+  other Profile @relation(fields: [otherId], references: [id], onDelete: Cascade)
+
+  @@id([userId, otherId])
+  @@map("matches")
+}
+
+/// Small key/value store (used for the seed version).
+model Meta {
+  key   String @id
+  value String
+
+  @@map("meta")
+}

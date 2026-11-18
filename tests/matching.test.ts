@@ -1,20 +1,18 @@
-import { PGlite } from "@electric-sql/pglite";
 import { beforeEach, describe, expect, it } from "vitest";
-import { fromPglite, migrate, type DB } from "../lib/db";
+import { createLocalDb, type DB } from "../lib/db";
 import { getFeed, getMatches, swipe, SwipeError } from "../lib/matching";
 import { seed } from "../lib/seed";
 import { ME } from "../lib/types";
 
 let db: DB;
-const likers = async () => (await db.query<{ liker_id: string }>("SELECT liker_id FROM likes")).map((r) => r.liker_id);
+const likers = async () => (await db.like.findMany()).map((r) => r.likerId);
 const nonLiker = async () => {
   const l = await likers();
   return (await getFeed(db, ME)).find((p) => !l.includes(p.id))!;
 };
 
 beforeEach(async () => {
-  db = fromPglite(new PGlite() as never); // in-memory Postgres
-  await migrate(db);
+  db = await createLocalDb(); // in-memory Postgres, schema from the Prisma migrations
   await seed(db);
 });
 
@@ -53,7 +51,7 @@ describe("swipe", () => {
     // a later, different swipe can't rewrite history either
     expect(await swipe(db, ME, id, "pass")).toEqual(first);
     expect(await getMatches(db, ME)).toHaveLength(1);
-    expect(await db.query("SELECT 1 FROM swipes WHERE target_id = $1", [id])).toHaveLength(1);
+    expect(await db.swipe.count({ where: { targetId: id } })).toBe(1);
   });
 
   it("rejects unknown targets and self-swipes", async () => {

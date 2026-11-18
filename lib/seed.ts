@@ -1,4 +1,4 @@
-import type { DB } from "./db";
+import type { PrismaClient } from "./generated/prisma/client";
 import { ME } from "./types";
 
 // [name, age, city/college, bio, interests, likedMe]
@@ -51,10 +51,10 @@ function mulberry32(a: number) {
 }
 
 /** Bump when the seed data (profiles, photos) changes so existing databases re-seed on next start. */
-export const SEED_VERSION = "2";
+export const SEED_VERSION = "3";
 
 /** Wipe and re-seed everything (profiles, swipes, likes, matches). */
-export async function seed(db: DB) {
+export async function seed(db: PrismaClient) {
   const rand = mulberry32(42);
   const order = PROFILES.map((_, i) => i);
   for (let i = order.length - 1; i > 0; i--) {
@@ -62,20 +62,32 @@ export async function seed(db: DB) {
     [order[i], order[j]] = [order[j], order[i]];
   }
 
-  await db.transaction(async (tx) => {
-    await tx.query("TRUNCATE matches, swipes, likes, profiles");
-    for (const [i, [name, age, city, bio, interests, likedMe]] of PROFILES.entries()) {
-      const id = `p${String(i + 1).padStart(2, "0")}`;
-      const photo = `/avatars/${id}.jpg`; // AI-generated placeholder portraits (see public/avatars)
-      await tx.query(
-        "INSERT INTO profiles (id, name, age, photo, bio, city, interests, sort_order) VALUES ($1,$2,$3,$4,$5,$6,$7,$8)",
-        [id, name, age, photo, bio, city, JSON.stringify(interests), order.indexOf(i)]
-      );
-      if (likedMe) await tx.query("INSERT INTO likes (liker_id, liked_id) VALUES ($1, $2)", [id, ME]);
-    }
-    await tx.query(
-      "INSERT INTO meta (key, value) VALUES ('seed_version', $1) ON CONFLICT (key) DO UPDATE SET value = EXCLUDED.value",
-      [SEED_VERSION]
-    );
-  });
+  const ids = PROFILES.map((_, i) => `p${String(i + 1).padStart(2, "0")}`);
+
+  await db.$transaction([
+    db.match.deleteMany(),
+    db.swipe.deleteMany(),
+    db.like.deleteMany(),
+    db.profile.deleteMany(),
+    db.profile.createMany({
+      data: PROFILES.map(([name, age, city, bio, interests], i) => ({
+        id: ids[i],
+        name,
+        age,
+        city,
+        bio,
+        interests,
+        photo: `/avatars/${ids[i]}.jpg`, // placeholder portraits (see public/avatars)
+        sortOrder: order.indexOf(i),
+      })),
+    }),
+    db.like.createMany({
+      data: PROFILES.flatMap(([, , , , , likedMe], i) => (likedMe ? [{ likerId: ids[i], likedId: ME }] : [])),
+    }),
+    db.meta.upsert({
+      where: { key: "seed_version" },
+      create: { key: "seed_version", value: SEED_VERSION },
+      update: { value: SEED_VERSION },
+    }),
+  ]);
 }

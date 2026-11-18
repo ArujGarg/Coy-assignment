@@ -1,7 +1,7 @@
 import type { NextConfig } from "next";
 
 const config: NextConfig = {
-  serverExternalPackages: ["pg", "@electric-sql/pglite"],
+  serverExternalPackages: ["@electric-sql/pglite", "pglite-prisma-adapter"],
   images: { unoptimized: true },
 };
 
