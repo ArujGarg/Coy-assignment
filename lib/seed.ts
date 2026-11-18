@@ -35,7 +35,7 @@ const PROFILES: Seed[] = [
   ["Harsh", 25, "Indore", "poha, poha, poha.", ["food", "cricket", "stand-up"], false],
   ["Alisha", 20, "Miranda House", "thrift flips and thesis panic.", ["thrifting", "fashion", "books"], false],
   ["Dhruv", 24, "Bhopal", "amateur astronomer, professional napper.", ["stargazing", "sci-fi", "chess"], false],
-  ["Navya", 23, "Hyderabad", "pickleball convert. ask me why.", ["pickleball", "baking", "k-drama"], false],
+  ["Navneet", 23, "Hyderabad", "pickleball convert. ask me why.", ["pickleball", "baking", "k-drama"], false],
   ["Ishaan", 22, "Shiv Nadar University", "overthinks playlists, underthinks outfits.", ["indie music", "football", "film"], false],
 ];
 
@@ -63,7 +63,7 @@ export async function seed(db: DB) {
     await tx.query("TRUNCATE matches, swipes, likes, profiles");
     for (const [i, [name, age, city, bio, interests, likedMe]] of PROFILES.entries()) {
       const id = `p${String(i + 1).padStart(2, "0")}`;
-      const photo = `https://picsum.photos/seed/coy-${id}/600/800`;
+      const photo = `/avatars/${id}.jpg`; // AI-generated placeholder portraits (see public/avatars)
       await tx.query(
         "INSERT INTO profiles (id, name, age, photo, bio, city, interests, sort_order) VALUES ($1,$2,$3,$4,$5,$6,$7,$8)",
         [id, name, age, photo, bio, city, JSON.stringify(interests), order.indexOf(i)]

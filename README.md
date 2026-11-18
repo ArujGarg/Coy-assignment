@@ -22,7 +22,7 @@ With no `DATABASE_URL`, the app uses an embedded Postgres (PGlite) stored in `da
 2. Import this repo in Vercel and add env vars: `DATABASE_URL` and, optionally, `ALLOW_RESET=true`.
 3. Deploy. Tables are created and seeded automatically on the first request.
 
-Seed: 31 profiles, 9 of which have already liked you. Photos are seeded picsum placeholders.
+Seed: 31 profiles, 9 of which have already liked you. Photos are free-to-use portraits from [Unsplash](https://unsplash.com/license) (Unsplash licence), stored in `public/avatars/`.
 
 ## Using it
 

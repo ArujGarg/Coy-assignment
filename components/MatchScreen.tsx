@@ -3,7 +3,7 @@
 import { motion } from "framer-motion";
 import type { Profile } from "@/lib/types";
 
-const MY_PHOTO = "https://picsum.photos/seed/coy-me/300/300";
+const MY_PHOTO = "/avatars/me.jpg";
 
 function Photo({ src, alt, tilt }: { src: string; alt: string; tilt: string }) {
   return (
