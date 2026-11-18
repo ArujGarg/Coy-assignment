@@ -1,6 +1,6 @@
 # coy · discover
 
-A swipe-based "Discover" tab for the Coy SDE intern assignment (Part B). Next.js (App Router) + TypeScript + Tailwind + Framer Motion, with SQLite (better-sqlite3) behind Next.js API routes. A single hardcoded user (`"me"`), no auth. The "Home" tab is intentionally blank.
+A swipe-based "Discover" tab for the Coy SDE intern assignment (Part B). Next.js (App Router) + TypeScript + Tailwind + Framer Motion, with Postgres (Neon in production, embedded PGlite locally) behind Next.js API routes. A single hardcoded user (`"me"`), no auth. The "Home" tab is intentionally blank.
 
 | Discover | It's a match |
 |---|---|
@@ -14,7 +14,13 @@ npm run dev     # http://localhost:3000 (next free port if busy)
 npm test        # vitest: match logic
 ```
 
-The SQLite file lives at `data/coy.db` (override with `DB_PATH`) and is seeded on first run, so swipes and matches survive reloads. Reset the demo with `GET /api/reset` (disabled in production builds).
+With no `DATABASE_URL`, the app uses an embedded Postgres (PGlite) stored in `data/`, so there's nothing to set up. Swipes and matches persist across reloads. Reset the demo with `GET /api/reset` (disabled in production unless `ALLOW_RESET=true`).
+
+## Deploy (Vercel + Neon)
+
+1. Create a free Postgres database on [Neon](https://neon.tech) and copy its (pooled) connection string.
+2. Import this repo in Vercel and add env vars: `DATABASE_URL` and, optionally, `ALLOW_RESET=true`.
+3. Deploy. Tables are created and seeded automatically on the first request.
 
 Seed: 31 profiles, 9 of which have already liked you. Photos are seeded picsum placeholders.
 
@@ -31,7 +37,7 @@ Seed: 31 profiles, 9 of which have already liked you. Photos are seeded picsum p
 | `GET /api/feed` | `{ profiles }` not yet swiped on, stable shuffled order. |
 | `POST /api/swipe` | Body `{ targetId, direction: "like" \| "pass" }` → `{ matched: boolean, match?: Profile }`. 400 on bad input, 404 on unknown profile. |
 | `GET /api/matches` | `{ matches }` mutual matches only, newest first. |
-| `GET /api/reset` | Dev only. Wipes and re-seeds. |
+| `GET /api/reset` | Dev only (or `ALLOW_RESET=true`). Wipes and re-seeds. |
 
 Profile: `{ id, name, age, photo, bio, city, interests[] }`.
 
@@ -47,7 +53,7 @@ The promise: nobody learns who liked them unless it's mutual.
 
 ## Backend design
 
-- `swipes` has `UNIQUE(user_id, target_id)`; `matches` has `UNIQUE(user_id, other_id)`.
+- Tables: `profiles`, `swipes`, `likes`, `matches`. `swipes` has `UNIQUE(user_id, target_id)`; `matches` has `UNIQUE(user_id, other_id)`.
 - `swipe()` runs in one transaction. A repeat swipe (even in the other direction) returns the original outcome and changes nothing, so it's idempotent and can't create duplicate matches.
 - Logic is in `lib/matching.ts`, separate from route handlers, and tested against an in-memory DB.
 
@@ -62,7 +68,7 @@ The promise: nobody learns who liked them unless it's mutual.
 ```
 app/api/*        route handlers (feed, swipe, matches, reset)
 lib/matching.ts  feed / swipe / matches logic
-lib/db.ts        schema + connection      lib/seed.ts  mock data
+lib/db.ts        schema + connection (Neon / PGlite)     lib/seed.ts  mock data
 components/      Discover, SwipeCard, MatchScreen, MatchesView
 tests/           vitest
 ```

@@ -10,7 +10,7 @@ export async function POST(req: Request) {
     return NextResponse.json({ error: 'expected { targetId: string, direction: "like" | "pass" }' }, { status: 400 });
   }
   try {
-    return NextResponse.json(swipe(getDb(), ME, targetId, direction));
+    return NextResponse.json(await swipe(await getDb(), ME, targetId, direction));
   } catch (e) {
     if (e instanceof SwipeError) return NextResponse.json({ error: e.message }, { status: e.status });
     throw e;

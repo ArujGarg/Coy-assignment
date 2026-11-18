@@ -1,80 +1,86 @@
+import { PGlite } from "@electric-sql/pglite";
 import { beforeEach, describe, expect, it } from "vitest";
-import { createDb, type DB } from "../lib/db";
+import { fromPglite, migrate, type DB } from "../lib/db";
 import { getFeed, getMatches, swipe, SwipeError } from "../lib/matching";
 import { seed } from "../lib/seed";
 import { ME } from "../lib/types";
 
 let db: DB;
-const likers = () => (db.prepare("SELECT liker_id FROM likes").all() as { liker_id: string }[]).map((r) => r.liker_id);
-const nonLiker = () => getFeed(db, ME).find((p) => !likers().includes(p.id))!;
+const likers = async () => (await db.query<{ liker_id: string }>("SELECT liker_id FROM likes")).map((r) => r.liker_id);
+const nonLiker = async () => {
+  const l = await likers();
+  return (await getFeed(db, ME)).find((p) => !l.includes(p.id))!;
+};
 
-beforeEach(() => {
-  db = createDb(":memory:");
-  seed(db);
+beforeEach(async () => {
+  db = fromPglite(new PGlite() as never); // in-memory Postgres
+  await migrate(db);
+  await seed(db);
 });
 
 describe("seed", () => {
-  it("has 30+ profiles and 8-10 who liked me", () => {
-    expect(getFeed(db, ME).length).toBeGreaterThanOrEqual(30);
-    expect(likers().length).toBeGreaterThanOrEqual(8);
-    expect(likers().length).toBeLessThanOrEqual(10);
+  it("has 30+ profiles and 8-10 who liked me", async () => {
+    expect((await getFeed(db, ME)).length).toBeGreaterThanOrEqual(30);
+    const n = (await likers()).length;
+    expect(n).toBeGreaterThanOrEqual(8);
+    expect(n).toBeLessThanOrEqual(10);
   });
 });
 
 describe("swipe", () => {
-  it("does not match when only I like them", () => {
-    const res = swipe(db, ME, nonLiker().id, "like");
-    expect(res).toEqual({ matched: false });
-    expect(getMatches(db, ME)).toHaveLength(0);
+  it("does not match when only I like them", async () => {
+    expect(await swipe(db, ME, (await nonLiker()).id, "like")).toEqual({ matched: false });
+    expect(await getMatches(db, ME)).toHaveLength(0);
   });
 
-  it("does not match when I pass on someone who liked me", () => {
-    expect(swipe(db, ME, likers()[0], "pass")).toEqual({ matched: false });
-    expect(getMatches(db, ME)).toHaveLength(0);
+  it("does not match when I pass on someone who liked me", async () => {
+    expect(await swipe(db, ME, (await likers())[0], "pass")).toEqual({ matched: false });
+    expect(await getMatches(db, ME)).toHaveLength(0);
   });
 
-  it("matches when it is mutual", () => {
-    const id = likers()[0];
-    const res = swipe(db, ME, id, "like");
+  it("matches when it is mutual", async () => {
+    const id = (await likers())[0];
+    const res = await swipe(db, ME, id, "like");
     expect(res.matched).toBe(true);
     expect(res.match?.id).toBe(id);
-    expect(getMatches(db, ME).map((p) => p.id)).toEqual([id]);
+    expect((await getMatches(db, ME)).map((p) => p.id)).toEqual([id]);
   });
 
-  it("is idempotent: repeat swipes return the same result and never duplicate", () => {
-    const id = likers()[0];
-    const first = swipe(db, ME, id, "like");
-    expect(swipe(db, ME, id, "like")).toEqual(first);
+  it("is idempotent: repeat swipes return the same result and never duplicate", async () => {
+    const id = (await likers())[0];
+    const first = await swipe(db, ME, id, "like");
+    expect(await swipe(db, ME, id, "like")).toEqual(first);
     // a later, different swipe can't rewrite history either
-    expect(swipe(db, ME, id, "pass")).toEqual(first);
-    expect(getMatches(db, ME)).toHaveLength(1);
-    expect(db.prepare("SELECT COUNT(*) n FROM swipes WHERE target_id = ?").get(id)).toEqual({ n: 1 });
+    expect(await swipe(db, ME, id, "pass")).toEqual(first);
+    expect(await getMatches(db, ME)).toHaveLength(1);
+    expect(await db.query("SELECT 1 FROM swipes WHERE target_id = $1", [id])).toHaveLength(1);
   });
 
-  it("rejects unknown targets and self-swipes", () => {
-    expect(() => swipe(db, ME, "nope", "like")).toThrow(SwipeError);
-    expect(() => swipe(db, ME, ME, "like")).toThrow(SwipeError);
+  it("rejects unknown targets and self-swipes", async () => {
+    await expect(swipe(db, ME, "nope", "like")).rejects.toThrow(SwipeError);
+    await expect(swipe(db, ME, ME, "like")).rejects.toThrow(SwipeError);
   });
 });
 
 describe("feed", () => {
-  it("excludes anything already swiped (like or pass)", () => {
-    const [a, b] = getFeed(db, ME);
-    swipe(db, ME, a.id, "like");
-    swipe(db, ME, b.id, "pass");
-    const ids = getFeed(db, ME).map((p) => p.id);
+  it("excludes anything already swiped (like or pass)", async () => {
+    const [a, b] = await getFeed(db, ME);
+    await swipe(db, ME, a.id, "like");
+    await swipe(db, ME, b.id, "pass");
+    const ids = (await getFeed(db, ME)).map((p) => p.id);
     expect(ids).not.toContain(a.id);
     expect(ids).not.toContain(b.id);
   });
 
-  it("is stable between calls", () => {
-    expect(getFeed(db, ME)).toEqual(getFeed(db, ME));
+  it("is stable between calls", async () => {
+    expect(await getFeed(db, ME)).toEqual(await getFeed(db, ME));
   });
 
-  it("never leaks who liked me", () => {
-    const feed = getFeed(db, ME);
-    const likedMe = feed.filter((p) => likers().includes(p.id));
-    const others = feed.filter((p) => !likers().includes(p.id));
+  it("never leaks who liked me", async () => {
+    const l = await likers();
+    const feed = await getFeed(db, ME);
+    const likedMe = feed.filter((p) => l.includes(p.id));
+    const others = feed.filter((p) => !l.includes(p.id));
     expect(likedMe.length).toBeGreaterThan(0);
 
     // same exact set of fields for everyone, none of them like-related
@@ -83,13 +89,12 @@ describe("feed", () => {
     expect(JSON.stringify(feed)).not.toMatch(/like/i);
 
     // and liked-me profiles aren't clustered at the front of the feed
-    const firstTen = feed.slice(0, 10).filter((p) => likers().includes(p.id)).length;
-    expect(firstTen).toBeLessThan(10);
+    expect(feed.slice(0, 10).filter((p) => l.includes(p.id)).length).toBeLessThan(10);
   });
 
-  it("a non-matching like/pass response reveals nothing about likers", () => {
-    const pass = swipe(db, ME, likers()[0], "pass");
-    const miss = swipe(db, ME, nonLiker().id, "like");
+  it("a non-matching like/pass response reveals nothing about likers", async () => {
+    const pass = await swipe(db, ME, (await likers())[0], "pass");
+    const miss = await swipe(db, ME, (await nonLiker()).id, "like");
     expect(pass).toEqual(miss);
   });
 });

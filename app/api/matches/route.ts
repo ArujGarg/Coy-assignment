@@ -5,6 +5,6 @@ import { ME } from "@/lib/types";
 
 export const dynamic = "force-dynamic";
 
-export function GET() {
-  return NextResponse.json({ matches: getMatches(getDb(), ME) });
+export async function GET() {
+  return NextResponse.json({ matches: await getMatches(await getDb(), ME) });
 }

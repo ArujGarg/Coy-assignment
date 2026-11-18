@@ -5,6 +5,6 @@ import { ME } from "@/lib/types";
 
 export const dynamic = "force-dynamic";
 
-export function GET() {
-  return NextResponse.json({ profiles: getFeed(getDb(), ME) });
+export async function GET() {
+  return NextResponse.json({ profiles: await getFeed(await getDb(), ME) });
 }

@@ -51,7 +51,7 @@ function mulberry32(a: number) {
 }
 
 /** Wipe and re-seed everything (profiles, swipes, likes, matches). */
-export function seed(db: DB) {
+export async function seed(db: DB) {
   const rand = mulberry32(42);
   const order = PROFILES.map((_, i) => i);
   for (let i = order.length - 1; i > 0; i--) {
@@ -59,18 +59,16 @@ export function seed(db: DB) {
     [order[i], order[j]] = [order[j], order[i]];
   }
 
-  db.transaction(() => {
-    for (const t of ["matches", "swipes", "likes", "profiles"]) db.exec(`DELETE FROM ${t}`);
-    const addProfile = db.prepare(
-      "INSERT INTO profiles (id, name, age, photo, bio, city, interests, position) VALUES (?, ?, ?, ?, ?, ?, ?, ?)"
-    );
-    const addLike = db.prepare("INSERT INTO likes (liker_id, liked_id) VALUES (?, ?)");
-
-    PROFILES.forEach(([name, age, city, bio, interests, likedMe], i) => {
+  await db.transaction(async (tx) => {
+    await tx.query("TRUNCATE matches, swipes, likes, profiles");
+    for (const [i, [name, age, city, bio, interests, likedMe]] of PROFILES.entries()) {
       const id = `p${String(i + 1).padStart(2, "0")}`;
       const photo = `https://picsum.photos/seed/coy-${id}/600/800`;
-      addProfile.run(id, name, age, photo, bio, city, JSON.stringify(interests), order.indexOf(i));
-      if (likedMe) addLike.run(id, ME);
-    });
-  })();
+      await tx.query(
+        "INSERT INTO profiles (id, name, age, photo, bio, city, interests, sort_order) VALUES ($1,$2,$3,$4,$5,$6,$7,$8)",
+        [id, name, age, photo, bio, city, JSON.stringify(interests), order.indexOf(i)]
+      );
+      if (likedMe) await tx.query("INSERT INTO likes (liker_id, liked_id) VALUES ($1, $2)", [id, ME]);
+    }
+  });
 }
