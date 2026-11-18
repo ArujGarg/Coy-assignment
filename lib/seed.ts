@@ -50,6 +50,9 @@ function mulberry32(a: number) {
   };
 }
 
+/** Bump when the seed data (profiles, photos) changes so existing databases re-seed on next start. */
+export const SEED_VERSION = "2";
+
 /** Wipe and re-seed everything (profiles, swipes, likes, matches). */
 export async function seed(db: DB) {
   const rand = mulberry32(42);
@@ -70,5 +73,9 @@ export async function seed(db: DB) {
       );
       if (likedMe) await tx.query("INSERT INTO likes (liker_id, liked_id) VALUES ($1, $2)", [id, ME]);
     }
+    await tx.query(
+      "INSERT INTO meta (key, value) VALUES ('seed_version', $1) ON CONFLICT (key) DO UPDATE SET value = EXCLUDED.value",
+      [SEED_VERSION]
+    );
   });
 }

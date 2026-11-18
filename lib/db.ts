@@ -1,5 +1,5 @@
 import path from "node:path";
-import { seed } from "./seed";
+import { SEED_VERSION, seed } from "./seed";
 
 /** Minimal async Postgres interface so the logic runs on Neon (prod) or PGlite (dev/tests). */
 export interface DB {
@@ -12,6 +12,10 @@ export interface DB {
 //  - likes:   others who already liked "me". Private: no query ever returns this table directly.
 //  - matches: created only when both sides liked. UNIQUE => no duplicates.
 const SCHEMA = `
+CREATE TABLE IF NOT EXISTS meta (
+  key   TEXT PRIMARY KEY,
+  value TEXT NOT NULL
+);
 CREATE TABLE IF NOT EXISTS profiles (
   id         TEXT PRIMARY KEY,
   name       TEXT NOT NULL,
@@ -95,8 +99,9 @@ export function getDb(): Promise<DB> {
   g.__coyDb ??= (async () => {
     const db = await connect();
     await migrate(db);
-    const [{ n }] = await db.query<{ n: number }>("SELECT COUNT(*)::int AS n FROM profiles");
-    if (n === 0) await seed(db);
+    // Seed on first run, and re-seed whenever the seed data changes (bump SEED_VERSION in lib/seed.ts).
+    const [row] = await db.query<{ value: string }>("SELECT value FROM meta WHERE key = 'seed_version'");
+    if (row?.value !== SEED_VERSION) await seed(db);
     return db;
   })().catch((e) => {
     g.__coyDb = undefined; // allow retry after a failed connect
