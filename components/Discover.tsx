@@ -1,6 +1,7 @@
 "use client";
 
 import { useCallback, useEffect, useRef, useState } from "react";
+import { AnimatePresence } from "framer-motion";
 import type { Profile, SwipeDirection, SwipeResult } from "@/lib/types";
 import { CardBody, SwipeCard, type CardHandle } from "./SwipeCard";
 import { MatchScreen } from "./MatchScreen";
@@ -111,7 +112,18 @@ export function Discover() {
       {error && queue !== null && (
         <div className="fixed bottom-24 left-1/2 -translate-x-1/2 rounded-full border-2 border-ink bg-yellow px-4 py-2 text-sm font-bold">{error}</div>
       )}
-      {justMatched && <MatchScreen match={justMatched} onClose={() => setJustMatched(null)} />}
+      <AnimatePresence>
+        {justMatched && (
+          <MatchScreen
+            match={justMatched}
+            onClose={() => setJustMatched(null)}
+            onViewMatches={() => {
+              setJustMatched(null);
+              setView("matches");
+            }}
+          />
+        )}
+      </AnimatePresence>
     </div>
   );
 }

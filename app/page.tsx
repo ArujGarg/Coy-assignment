@@ -9,7 +9,7 @@ export default function App() {
   const [tab, setTab] = useState<Tab>("discover");
 
   return (
-    <div className="mx-auto flex h-dvh max-w-[440px] flex-col overflow-hidden border-line bg-white md:border-x-2">
+    <div className="mx-auto flex h-dvh max-w-[440px] flex-col overflow-hidden bg-white">
       <header className="flex items-center justify-center px-5 pb-1 pt-4">
         <h1 className="text-[30px] leading-none">
           coy<span className="text-pink">.</span>
