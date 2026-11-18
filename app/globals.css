@@ -1,0 +1,75 @@
+@import "tailwindcss";
+
+:root {
+  --bg: #fff;
+  --soft: #f6f4fa;
+  --line: #ece9f2;
+  --text: #15121d;
+  --muted: #6d6979;
+  --pink: #ff3d81;
+  --pink-strong: #d81e63;
+  --pink-soft: #ffe4ef;
+  --yellow: #ffe45c;
+  --lilac: #e7e0ff;
+  --mint: #cbf4e0;
+  --sky: #d7ecff;
+  --peach: #ffe1cf;
+  --ok: #0e8f48;
+  --danger: #d92d3a;
+  --edge: 2px solid var(--text);
+  --pop: 3px 3px 0 var(--text);
+  --radius: 20px;
+}
+
+@theme inline {
+  --font-sans: var(--font-bricolage), system-ui, sans-serif;
+  --color-soft: var(--soft);
+  --color-line: var(--line);
+  --color-ink: var(--text);
+  --color-muted: var(--muted);
+  --color-pink: var(--pink);
+  --color-pink-strong: var(--pink-strong);
+  --color-pink-soft: var(--pink-soft);
+  --color-yellow: var(--yellow);
+  --color-lilac: var(--lilac);
+  --color-mint: var(--mint);
+  --color-sky: var(--sky);
+  --color-peach: var(--peach);
+  --color-ok: var(--ok);
+  --color-danger: var(--danger);
+}
+
+html,
+body {
+  height: 100%;
+  background: var(--soft);
+  color: var(--text);
+  font-size: 16px;
+  -webkit-tap-highlight-color: transparent;
+}
+
+h1,
+h2,
+h3 {
+  font-weight: 800;
+  letter-spacing: -0.035em;
+}
+
+/* neo-brutalist "pop" helpers */
+.pop {
+  border: var(--edge);
+  box-shadow: var(--pop);
+  border-radius: var(--radius);
+}
+.pop-btn {
+  border: var(--edge);
+  box-shadow: var(--pop);
+  transition: transform 0.08s, box-shadow 0.08s;
+}
+.pop-btn:active {
+  transform: translate(3px, 3px);
+  box-shadow: none;
+}
+.pop-btn:disabled {
+  opacity: 0.5;
+}
