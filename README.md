@@ -1,6 +1,6 @@
 # coy · discover
 
-A swipe-based "Discover" tab for the Coy SDE intern assignment (Part B). Next.js (App Router) + TypeScript + Tailwind + Framer Motion, with Postgres via [Prisma](https://www.prisma.io) (Neon in production, embedded PGlite locally) behind Next.js API routes. A single hardcoded user (`"me"`), no auth. The "Home" tab is intentionally blank.
+A swipe-based "Discover" tab for the Coy SDE intern assignment (Part B). Next.js (App Router) + TypeScript + Tailwind + Framer Motion, with a separate **Express** API (`backend/`, the UI is in `frontend/`) on Postgres via [Prisma](https://www.prisma.io) (Neon in production, embedded PGlite locally). A single hardcoded user (`"me"`), no auth. The "Home" tab is intentionally blank.
 
 | Discover | It's a match |
 |---|---|
@@ -8,23 +8,41 @@ A swipe-based "Discover" tab for the Coy SDE intern assignment (Part B). Next.js
 
 ## Run it
 
+Two separate apps: the Express API (`backend/`, port 4000) and the Next.js frontend (`frontend/`, port 3000, or the next free port).
+
 ```bash
-npm install
-npm run dev     # http://localhost:3000 (next free port if busy)
-npm test        # vitest: match logic
+# once
+cd backend && npm install && cd ../frontend && npm install && cd ..
+
+# terminal 1: API on :4000
+cd backend && npm run dev
+
+# terminal 2: frontend
+cd frontend && npm run dev
+
+# tests (match logic + HTTP routes)
+cd backend && npm test
 ```
 
-With no `DATABASE_URL`, the app uses an embedded Postgres (PGlite) stored in `data/`, so there's nothing to set up. Swipes and matches persist across reloads. Reset the demo with `GET /api/reset` (disabled in production unless `ALLOW_RESET=true`).
+The frontend calls `/api/*` on its own origin and Next forwards it to Express (`rewrites` in `frontend/next.config.ts`; set `BACKEND_URL` if the API isn't on `localhost:4000`), so there's no CORS setup.
 
-## Deploy (Vercel + Neon)
+With no `DATABASE_URL`, the API uses an embedded Postgres (PGlite) stored in `backend/data/`, so there's nothing to set up. Swipes and matches persist across reloads. Reset the demo with `GET /api/reset` (disabled in production unless `ALLOW_RESET=true`).
 
+## Deploy
+
+Two deployments: the Express API anywhere that runs Node (Render, Railway, Fly…), and the frontend on Vercel.
+
+**API** (root directory `backend`; see `backend/.env.example`)
 1. Create a free Postgres database on [Neon](https://neon.tech) and copy its (pooled) connection string.
-2. Import this repo in Vercel and add env vars: `DATABASE_URL` and, optionally, `ALLOW_RESET=true`.
-3. Deploy. The build runs `prisma migrate deploy` (creates the tables from `prisma/migrations`), and the app seeds itself on the first request.
+2. Build command `npm install`, start command `npm start`. Env vars: `DATABASE_URL`, optionally `ALLOW_RESET=true`. `npm start` runs `prisma migrate deploy` (creates the tables from `prisma/migrations`), then starts the server, which seeds itself on first run.
+
+**Frontend** (Vercel, root directory `frontend`)
+1. Set env var `BACKEND_URL` to the API's public URL (e.g. `https://coy-api.onrender.com`).
+2. Deploy.
 
 > Moving an older database (created before Prisma was added)? Prisma won't migrate a non-empty database, so reset it once in the Neon SQL editor: `DROP SCHEMA public CASCADE; CREATE SCHEMA public;`
 
-Seed: 32 profiles, 9 of which have already liked you. Photos are free-to-use portraits from [Unsplash](https://unsplash.com/license) (Unsplash licence), stored in `public/avatars/`.
+Seed: 32 profiles, 9 of which have already liked you. Photos are free-to-use portraits from [Unsplash](https://unsplash.com/license) (Unsplash licence), stored in `frontend/public/avatars/`.
 
 ## Using it
 
@@ -55,7 +73,7 @@ The promise: nobody learns who liked them unless it's mutual.
 
 ## Backend design
 
-- The schema lives in `prisma/schema.prisma` (models `Profile`, `Swipe`, `Like`, `Match`, `Meta`) and all queries go through the Prisma client. Changing the schema: edit it, then `npx prisma migrate dev --name <change>`.
+- The schema lives in `prisma/schema.prisma` (models `Profile`, `Swipe`, `Like`, `Match`, `Meta`) and all queries go through the Prisma client. Changing the schema: edit it, then `npx prisma migrate dev --name <change>` inside `backend/`.
 - Tables: `profiles`, `swipes`, `likes`, `matches`. `swipes` has a composite primary key `(user_id, target_id)`; `matches` has `(user_id, other_id)`.
 - `swipe()` runs in one transaction. A repeat swipe (even in the other direction) returns the original outcome and changes nothing, so it's idempotent and can't create duplicate matches.
 - Logic is in `lib/matching.ts`, separate from route handlers, and tested against an in-memory DB.
@@ -69,10 +87,18 @@ The promise: nobody learns who liked them unless it's mutual.
 ## Layout
 
 ```
-app/api/*        route handlers (feed, swipe, matches, reset)
-lib/matching.ts  feed / swipe / matches logic
-prisma/          schema + migrations
-lib/db.ts        Prisma client (Neon / PGlite)     lib/seed.ts  mock data
-components/      Discover, SwipeCard, MatchScreen, MatchesView
-tests/           vitest
+frontend/            Next.js app (UI only, no server code)
+  app/               page, layout, global styles
+  components/        Discover, SwipeCard, MatchScreen, MatchesView, Chips
+  public/avatars/    profile photos
+  lib/types.ts       shared types
+backend/             Express API
+  src/app.ts         the 4 routes + error handler
+  src/server.ts      starts the server
+  src/matching.ts    feed / swipe / matches logic
+  src/db.ts          Prisma client (Neon / PGlite)
+  src/seed.ts        mock data
+  prisma/            schema + migrations
+  tests/             vitest (logic + HTTP)
+docs/                screenshots
 ```

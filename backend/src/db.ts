@@ -33,18 +33,10 @@ function connect(): Promise<DB> {
   return createLocalDb(path.join(process.cwd(), "data", "pglite"));
 }
 
-const g = globalThis as unknown as { __coyDb?: Promise<DB> };
-
-/** Shared client (survives Next.js dev hot reloads). Seeds on first run and whenever SEED_VERSION changes. */
-export function getDb(): Promise<DB> {
-  g.__coyDb ??= (async () => {
-    const db = await connect();
-    const version = await db.meta.findUnique({ where: { key: "seed_version" } });
-    if (version?.value !== SEED_VERSION) await seed(db);
-    return db;
-  })().catch((e) => {
-    g.__coyDb = undefined; // allow retry after a failed connect
-    throw e;
-  });
-  return g.__coyDb;
+/** Connects, and seeds on first run and whenever SEED_VERSION changes. Called once at server start. */
+export async function getDb(): Promise<DB> {
+  const db = await connect();
+  const version = await db.meta.findUnique({ where: { key: "seed_version" } });
+  if (version?.value !== SEED_VERSION) await seed(db);
+  return db;
 }

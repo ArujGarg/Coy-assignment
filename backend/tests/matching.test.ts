@@ -1,8 +1,8 @@
 import { beforeEach, describe, expect, it } from "vitest";
-import { createLocalDb, type DB } from "../lib/db";
-import { getFeed, getMatches, swipe, SwipeError } from "../lib/matching";
-import { seed } from "../lib/seed";
-import { ME } from "../lib/types";
+import { createLocalDb, type DB } from "../src/db";
+import { getFeed, getMatches, swipe, SwipeError } from "../src/matching";
+import { seed } from "../src/seed";
+import { ME } from "../src/types";
 
 let db: DB;
 const likers = async () => (await db.like.findMany()).map((r) => r.likerId);
