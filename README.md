@@ -1,6 +1,9 @@
 # coy · discover
 
-**Live demo:** https://coy-assignment.vercel.app (the free API host sleeps when idle, so the first load can take ~30s)
+**Live demo:** https://coy-assignment.vercel.app
+**API (Express on Render):** https://coy-assignment-mjqd.onrender.com, e.g. [`/api/feed`](https://coy-assignment-mjqd.onrender.com/api/feed), [`/api/matches`](https://coy-assignment-mjqd.onrender.com/api/matches), [`/health`](https://coy-assignment-mjqd.onrender.com/health)
+
+The free API host sleeps when idle, so the first load can take ~30s.
 
 A swipe-based "Discover" tab for the Coy SDE intern assignment (Part B). Next.js (App Router) + TypeScript + Tailwind + Framer Motion, with a separate **Express** API (`backend/`, the UI is in `frontend/`) on Postgres via [Prisma](https://www.prisma.io) (Neon in production, embedded PGlite locally). A single hardcoded user (`"me"`), no auth. The "Home" tab is intentionally blank.
 
