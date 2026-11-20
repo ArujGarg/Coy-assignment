@@ -1,5 +1,7 @@
 # coy Â· discover
 
+**Live demo:** https://coy-assignment.vercel.app (the free API host sleeps when idle, so the first load can take ~30s)
+
 A swipe-based "Discover" tab for the Coy SDE intern assignment (Part B). Next.js (App Router) + TypeScript + Tailwind + Framer Motion, with a separate **Express** API (`backend/`, the UI is in `frontend/`) on Postgres via [Prisma](https://www.prisma.io) (Neon in production, embedded PGlite locally). A single hardcoded user (`"me"`), no auth. The "Home" tab is intentionally blank.
 
 | Discover | It's a match |
@@ -40,7 +42,7 @@ Two deployments: the Express API anywhere that runs Node (Render, Railway, Flyâ€
 1. Set env var `BACKEND_URL` to the API's public URL (e.g. `https://coy-api.onrender.com`).
 2. Deploy.
 
-> Moving an older database (created before Prisma was added)? Prisma won't migrate a non-empty database, so reset it once in the Neon SQL editor: `DROP SCHEMA public CASCADE; CREATE SCHEMA public;`
+> Prisma refuses to migrate a non-empty database that wasn't created by it. If you point the API at an existing database with other tables, use a fresh one.
 
 Seed: 32 profiles, 9 of which have already liked you. Photos are free-to-use portraits from [Unsplash](https://unsplash.com/license) (Unsplash licence), stored in `frontend/public/avatars/`.
 
@@ -76,7 +78,7 @@ The promise: nobody learns who liked them unless it's mutual.
 - The schema lives in `prisma/schema.prisma` (models `Profile`, `Swipe`, `Like`, `Match`, `Meta`) and all queries go through the Prisma client. Changing the schema: edit it, then `npx prisma migrate dev --name <change>` inside `backend/`.
 - Tables: `profiles`, `swipes`, `likes`, `matches`. `swipes` has a composite primary key `(user_id, target_id)`; `matches` has `(user_id, other_id)`.
 - `swipe()` runs in one transaction. A repeat swipe (even in the other direction) returns the original outcome and changes nothing, so it's idempotent and can't create duplicate matches.
-- Logic is in `lib/matching.ts`, separate from route handlers, and tested against an in-memory DB.
+- Logic is in `backend/src/matching.ts`, separate from the Express routes, and tested against an in-memory Postgres (PGlite) using the same Prisma migrations as production.
 
 ## UI notes
 
