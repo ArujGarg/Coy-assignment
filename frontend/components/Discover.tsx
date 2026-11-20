@@ -17,14 +17,32 @@ export function Discover() {
   const [error, setError] = useState<string | null>(null);
   const card = useRef<CardHandle>(null);
 
-  useEffect(() => {
-    Promise.all([fetch("/api/feed").then((r) => r.json()), fetch("/api/matches").then((r) => r.json())])
-      .then(([f, m]) => {
-        setQueue(f.profiles);
-        setMatches(m.matches);
-      })
-      .catch(() => setError("couldn't load profiles. refresh to retry"));
+  const flash = useCallback((message: string) => {
+    setError(message);
+    setTimeout(() => setError(null), 3000);
   }, []);
+
+  const load = useCallback(async () => {
+    const [f, m] = await Promise.all([fetch("/api/feed").then((r) => r.json()), fetch("/api/matches").then((r) => r.json())]);
+    setQueue(f.profiles);
+    setMatches(m.matches);
+  }, []);
+
+  useEffect(() => {
+    load().catch(() => setError("couldn't load profiles. refresh to retry"));
+  }, [load]);
+
+  // Demo helper: wipe swipes/matches on the server, then reload the feed.
+  const resetDemo = async () => {
+    try {
+      const res = await fetch("/api/reset", { method: "POST" });
+      if (!res.ok) throw new Error();
+      await load();
+      setView("swipe");
+    } catch {
+      flash("couldn't reset the demo");
+    }
+  };
 
   // Optimistic: drop the card right away, reconcile with the server response.
   const onSwiped = useCallback(
@@ -44,11 +62,10 @@ export function Discover() {
         }
       } catch {
         setQueue((q) => q && [profile, ...q]); // roll back
-        setError("swipe didn't save. try again");
-        setTimeout(() => setError(null), 3000);
+        flash("swipe didn't save. try again");
       }
     },
-    []
+    [flash]
   );
 
   const top = queue?.[0];
@@ -78,7 +95,7 @@ export function Discover() {
 
       <div className="min-h-0 flex-1">
         {view === "matches" ? (
-          <MatchesView matches={matches} />
+          <MatchesView matches={matches} onReset={resetDemo} />
         ) : queue === null ? (
           <p className="pt-24 text-center font-semibold text-muted">{error ?? "finding people… ✨"}</p>
         ) : !top ? (
@@ -86,6 +103,9 @@ export function Discover() {
             <div className="text-5xl">🤫</div>
             <h2 className="text-[26px]">you&apos;ve seen everyone</h2>
             <p className="text-muted">check back soon. new people show up all the time.</p>
+            <button onClick={resetDemo} className="pop-btn mt-4 rounded-full bg-pink px-6 py-3 text-[15px] font-extrabold text-white">
+              ↺ start over
+            </button>
           </div>
         ) : (
           <div className="flex h-full flex-col">

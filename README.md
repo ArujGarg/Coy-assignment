@@ -31,7 +31,7 @@ cd backend && npm test
 
 The frontend calls `/api/*` on its own origin and Next forwards it to Express (`rewrites` in `frontend/next.config.ts`; set `BACKEND_URL` if the API isn't on `localhost:4000`), so there's no CORS setup.
 
-With no `DATABASE_URL`, the API uses an embedded Postgres (PGlite) stored in `backend/data/`, so there's nothing to set up. Swipes and matches persist across reloads. Reset the demo with `GET /api/reset` (disabled in production unless `ALLOW_RESET=true`).
+With no `DATABASE_URL`, the API uses an embedded Postgres (PGlite) stored in `backend/data/`, so there's nothing to set up. Swipes and matches persist across reloads. Reset the demo with the in-app button or `GET /api/reset` (disabled in production unless `ALLOW_RESET=true`; leave it on for the live demo so reviewers can try it again).
 
 ## Deploy
 
@@ -54,6 +54,7 @@ Seed: 32 profiles, 9 of which have already liked you. Photos are free-to-use por
 - Drag a card right to like, left to pass (touch or mouse). LIKE / NOPE stamps fade in with the drag.
 - Or use the ✕ / ♥ buttons, or the ← / → arrow keys.
 - "matches" (top right) lists mutual matches.
+- Seen everyone? Tap **start over** (or **reset demo** on the Matches screen) to wipe the demo data and swipe again. Note the demo has one shared user, so a reset affects everyone using it.
 
 ## API
 
@@ -62,7 +63,7 @@ Seed: 32 profiles, 9 of which have already liked you. Photos are free-to-use por
 | `GET /api/feed` | `{ profiles }` not yet swiped on, stable shuffled order. |
 | `POST /api/swipe` | Body `{ targetId, direction: "like" \| "pass" }` → `{ matched: boolean, match?: Profile }`. 400 on bad input, 404 on unknown profile. |
 | `GET /api/matches` | `{ matches }` mutual matches only, newest first. |
-| `GET /api/reset` | Dev only (or `ALLOW_RESET=true`). Wipes and re-seeds. |
+| `POST /api/reset` (also `GET`) | Wipes swipes/matches and re-seeds, so the demo can be tried again. Used by the "start over" / "reset demo" buttons. Dev only, or when `ALLOW_RESET=true`. |
 
 Profile: `{ id, name, age, photo, bio, city, interests[] }`.
 

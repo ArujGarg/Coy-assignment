@@ -48,6 +48,13 @@ describe("express API", () => {
     expect(again.body).toEqual(first.body);
   });
 
+  it("POST /api/reset (used by the UI button) re-seeds too", async () => {
+    await swipe({ targetId: "p01", direction: "like" });
+    await api.post("/api/reset").expect(200);
+    expect((await api.get("/api/matches")).body.matches).toEqual([]);
+    expect((await api.get("/api/feed")).body.profiles.length).toBeGreaterThanOrEqual(30);
+  });
+
   it("GET /api/reset re-seeds (outside production)", async () => {
     await swipe({ targetId: "p01", direction: "like" });
     await api.get("/api/reset").expect(200);

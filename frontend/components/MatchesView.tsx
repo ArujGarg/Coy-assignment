@@ -3,13 +3,22 @@ import { Chips } from "./Chips";
 
 const FILLS = ["bg-lilac", "bg-mint", "bg-peach", "bg-sky"];
 
-export function MatchesView({ matches }: { matches: Profile[] }) {
+function ResetLink({ onReset }: { onReset: () => void }) {
+  return (
+    <button onClick={onReset} className="mx-auto mt-2 shrink-0 text-[13px] font-extrabold text-muted underline decoration-2 underline-offset-4">
+      ↺ reset demo
+    </button>
+  );
+}
+
+export function MatchesView({ matches, onReset }: { matches: Profile[]; onReset: () => void }) {
   if (matches.length === 0) {
     return (
       <div className="flex h-full flex-col items-center justify-center gap-2 px-8 text-center">
         <div className="text-5xl">💌</div>
         <h2 className="text-[24px]">no matches yet</h2>
         <p className="text-muted">keep swiping. mutual likes show up here.</p>
+        <ResetLink onReset={onReset} />
       </div>
     );
   }
@@ -28,6 +37,7 @@ export function MatchesView({ matches }: { matches: Profile[] }) {
           </div>
         </li>
       ))}
+      <ResetLink onReset={onReset} />
     </ul>
   );
 }

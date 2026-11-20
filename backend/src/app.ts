@@ -1,4 +1,4 @@
-import express, { type ErrorRequestHandler } from "express";
+import express, { type ErrorRequestHandler, type RequestHandler } from "express";
 import type { DB } from "./db";
 import { getFeed, getMatches, swipe, SwipeError } from "./matching";
 import { seed } from "./seed";
@@ -32,15 +32,18 @@ export function createApp(db: DB) {
     res.json({ matches: await getMatches(db, ME) });
   });
 
-  // Wipe swipes/matches and re-seed, handy for demos. Off in production unless ALLOW_RESET=true.
-  app.get("/api/reset", async (_req, res) => {
+  // Wipe swipes/matches and re-seed, so a reviewer can try the demo again. Off in production unless ALLOW_RESET=true.
+  // POST is what the UI button uses; GET is kept so you can also just open the URL.
+  const reset: RequestHandler = async (_req, res) => {
     if (process.env.NODE_ENV === "production" && process.env.ALLOW_RESET !== "true") {
       res.status(404).json({ error: "not found" });
       return;
     }
     await seed(db);
     res.json({ ok: true });
-  });
+  };
+  app.get("/api/reset", reset);
+  app.post("/api/reset", reset);
 
   // Express 5 sends errors thrown in async handlers here.
   const onError: ErrorRequestHandler = (err, _req, res, _next) => {
